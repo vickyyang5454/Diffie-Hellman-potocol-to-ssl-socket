@@ -1,0 +1,67 @@
+#!/bin/bash
+
+set -e
+
+BASEDIR=$(pwd)
+
+#CERTS_ROOT=/etc/vx/CERTS
+CERTS_ROOT=./CERTS
+
+gen_certs() {
+	echo -n 'generating CA certificates... '
+	rm -rf ${CERTS_ROOT}
+	mkdir -p ${CERTS_ROOT}
+	mkdir -p ${CERTS_ROOT}/signedcerts ${CERTS_ROOT}/private
+	echo '01' > ${CERTS_ROOT}/serial
+	touch ${CERTS_ROOT}/index.txt
+	sed "s,__CERTS_ROOT__,$CERTS_ROOT," ${BASEDIR}/conf/ca.cnf > \
+	    ${CERTS_ROOT}/caconfig.cnf
+	openssl req -config ${CERTS_ROOT}/caconfig.cnf -x509 -newkey rsa:2048 \
+		-out ${CERTS_ROOT}/cacert.pem -passout pass:root -outform PEM \
+		-days 1825 > /dev/null 2>&1
+	echo 'done.'
+
+	echo -n 'generating server certificates... '
+	cp ${BASEDIR}/conf/server.cnf ${CERTS_ROOT}/server.cnf
+	openssl req -config ${CERTS_ROOT}/server.cnf -newkey rsa:2048 \
+		-keyout ${CERTS_ROOT}/server-tempkey.pem -passout pass:root \
+		-keyform PEM -out ${CERTS_ROOT}/server-tempreq.pem \
+		-outform PEM > /dev/null 2>&1
+	openssl rsa -passin pass:root \
+		< ${CERTS_ROOT}/server-tempkey.pem \
+		> ${CERTS_ROOT}/server-key.pem \
+		2>/dev/null
+	openssl ca -config ${CERTS_ROOT}/caconfig.cnf \
+		-passin pass:root -batch \
+		-in ${CERTS_ROOT}/server-tempreq.pem \
+		-out ${CERTS_ROOT}/server-crt.pem \
+		> /dev/null 2>&1
+	echo 'done.'
+
+	echo -n 'generating client certificates... '
+	cp ${BASEDIR}/conf/client.cnf ${CERTS_ROOT}/client.cnf
+	openssl req -config ${CERTS_ROOT}/client.cnf -newkey rsa:2048 \
+		-keyout ${CERTS_ROOT}/client-tempkey.pem -passout pass:root \
+		-keyform PEM -out ${CERTS_ROOT}/client-tempreq.pem \
+		-outform PEM > /dev/null 2>&1
+	openssl rsa -passin pass:root \
+		< ${CERTS_ROOT}/client-tempkey.pem \
+		> ${CERTS_ROOT}/client-key.pem \
+		2>/dev/null
+	openssl ca -config ${CERTS_ROOT}/caconfig.cnf \
+		-passin pass:root -batch \
+		-in ${CERTS_ROOT}/client-tempreq.pem \
+		-out ${CERTS_ROOT}/client-crt.pem \
+		> /dev/null 2>&1
+	echo 'done.'
+	cleanup
+}
+
+cleanup() {
+	#rm -rf ${CERTS_ROOT}/signedcerts ${CERTS_ROOT}/private
+	rm -rf ${CERTS_ROOT}/*temp* ${CERTS_ROOT}/*.old ${CERTS_ROOT}/*.cnf\
+	       	${CERTS_ROOT}/index* ${CERTS_ROOT}/serial
+}
+
+gen_certs
+

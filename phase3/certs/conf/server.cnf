@@ -1,0 +1,20 @@
+[ req ]
+prompt                  = no
+distinguished_name      = server_distinguished_name
+req_extensions          = v3_req
+
+[ server_distinguished_name ]
+commonName              = server
+stateOrProvinceName     = MH
+countryName             = IN
+emailAddress            = chandrakant.agarkar@linux.com
+organizationName        = Linux Organization
+organizationalUnitName  = server organization
+
+[ v3_req ]
+basicConstraints        = CA:FALSE
+keyUsage                = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName          = @alt_names
+
+[ alt_names ]
+DNS.0                   = server.
